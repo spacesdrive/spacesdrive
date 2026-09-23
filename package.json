@@ -1,0 +1,20 @@
+{
+  "name": "spacesdrive-profile",
+  "private": true,
+  "description": "Generates the terminal-style profile card and live GitHub stats for github.com/spacesdrive",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "stats": "node scripts/update-github-stats.ts",
+    "avatar": "node scripts/generate-ascii-avatar.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.6",
+    "jpeg-js": "0.4.4",
+    "typescript": "7.0.2"
+  }
+}
