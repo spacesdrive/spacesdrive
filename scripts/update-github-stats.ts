@@ -16,7 +16,7 @@ import { collectStats } from './lib/stats.ts';
 
 const ROOT = new URL('../', import.meta.url);
 const README = new URL('README.md', ROOT);
-const PORTRAIT = new URL('assets/avatar-ascii.txt', ROOT);
+const PORTRAIT = new URL('assets/avatar-luma.txt', ROOT);
 
 const CARDS: Record<keyof CardImages, { path: string; theme: Theme; layout: Layout }> = {
   wideDark: { path: 'assets/profile-card-dark.svg', theme: 'dark', layout: 'wide' },

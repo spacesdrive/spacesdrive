@@ -12,7 +12,7 @@ on:
     paths:
       - profile.config.ts
       - scripts/**
-      - assets/avatar-ascii.txt
+      - assets/avatar-luma.txt
       - .github/workflows/update-github-stats.yml
 
 permissions:

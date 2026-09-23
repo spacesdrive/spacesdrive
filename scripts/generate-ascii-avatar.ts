@@ -1,7 +1,7 @@
 /**
- * One-off generator: turns the GitHub avatar into the ASCII portrait used by the
- * profile card. Its output (assets/avatar-ascii.txt) is committed, so the daily
- * stats job never needs to decode images.
+ * One-off generator: samples the GitHub avatar into the brightness grid the
+ * profile card draws its ASCII portrait from. Its output (assets/avatar-luma.txt)
+ * is committed, so the daily stats job never needs to decode images.
  *
  * Usage:
  *   npm run avatar                 # fetches the current avatar from GitHub
@@ -10,21 +10,15 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import jpeg from 'jpeg-js';
 import { profile } from '../profile.config.ts';
-import { PORTRAIT_CELL_ASPECT } from './lib/card.ts';
+import { LUMA_LEVELS, PORTRAIT_CELL_ASPECT } from './lib/card.ts';
 
-const OUTPUT = new URL('../assets/avatar-ascii.txt', import.meta.url);
+const OUTPUT = new URL('../assets/avatar-luma.txt', import.meta.url);
 
 /** Output width in characters. The card layout is tuned for this value. */
-const COLUMNS = 52;
+const COLUMNS = 60;
 
-/** Portion of the photo to keep, as fractions of width and height. */
-const CROP = { left: 0.27, right: 0.79, top: 0, bottom: 0.76 } as const;
-
-/**
- * Characters ordered from least to most ink. A short ramp with clearly distinct
- * densities reads as a picture; long ramps turn into noise at this size.
- */
-const RAMP = " .',;:clodxkO0KXNWM";
+/** Portion of the photo to keep, as fractions of width and height: head, collar and shoulder. */
+const CROP = { left: 0.25, right: 0.8, top: 0, bottom: 0.72 } as const;
 
 /** Background pixels are flood-filled from the border while brighter than this. */
 const BACKGROUND_THRESHOLD = 0.6;
@@ -35,8 +29,6 @@ const MIN_COVERAGE = 0.45;
 
 /** Strength of the unsharp mask applied to the character grid. */
 const SHARPEN = 0.9;
-/** Values below 1 lift mid-tones so skin keeps some texture. */
-const GAMMA = 0.9;
 
 interface GrayImage {
   width: number;
@@ -201,23 +193,17 @@ function normalise(cells: Float32Array, background: Uint8Array, columns: number,
 }
 
 /**
- * Ink follows darkness. On the dark card that is a negative, which still reads
- * well because the likeness is carried by the hair and shoulder silhouette.
+ * Encodes the brightness of each subject cell as one base-36 digit (0 = black,
+ * z = white); background cells are spaces. The card turns these levels into
+ * characters and opacity per theme, so the face stays a positive image on both.
  */
-function toAscii(level: Float32Array, background: Uint8Array, columns: number, rows: number): string {
+function toLumaGrid(level: Float32Array, background: Uint8Array, columns: number, rows: number): string {
   const lines: string[] = [];
   for (let row = 0; row < rows; row++) {
     let line = '';
     for (let col = 0; col < columns; col++) {
       const i = row * columns + col;
-      if (background[i]) {
-        line += ' ';
-        continue;
-      }
-      const value = level[i] ?? 0;
-      const ink = Math.pow(1 - value, GAMMA);
-      // Index 0 is a space; the subject always gets at least a faint mark to keep its outline.
-      line += RAMP[Math.min(RAMP.length - 1, 1 + Math.round(ink * (RAMP.length - 2)))];
+      line += background[i] ? ' ' : Math.round((level[i] ?? 0) * (LUMA_LEVELS - 1)).toString(36);
     }
     lines.push(line.trimEnd());
   }
@@ -229,10 +215,9 @@ async function main(): Promise<void> {
   const image = toGray(await loadAvatar(process.argv[2]));
   const { rows, cells, background } = sampleCells(image, findBackground(image), COLUMNS);
   const level = normalise(cells, background, COLUMNS, rows);
-  const ascii = toAscii(level, background, COLUMNS, rows);
-  await writeFile(OUTPUT, ascii);
-  process.stdout.write(ascii);
-  console.log(`\nWrote ${COLUMNS}x${ascii.split('\n').length - 1} portrait to ${OUTPUT.pathname}`);
+  const grid = toLumaGrid(level, background, COLUMNS, rows);
+  await writeFile(OUTPUT, grid);
+  console.log(`Wrote ${COLUMNS}x${grid.split('\n').length - 1} portrait to ${OUTPUT.pathname}`);
 }
 
 await main();

@@ -16,11 +16,26 @@ const CHAR_WIDTH = FONT_SIZE * ADVANCE;
 const LINE_HEIGHT = 17;
 
 /** The portrait uses a smaller font than the text so it gets more detail in the same space. */
-const PORTRAIT_FONT_SIZE = 12;
+const PORTRAIT_FONT_SIZE = 11;
 const PORTRAIT_CHAR_WIDTH = PORTRAIT_FONT_SIZE * ADVANCE;
-const PORTRAIT_LINE_HEIGHT = 14.4;
+const PORTRAIT_LINE_HEIGHT = 13.2;
 /** Width-to-height ratio of one portrait cell, used by the generator to avoid distortion. */
 export const PORTRAIT_CELL_ASPECT = PORTRAIT_CHAR_WIDTH / PORTRAIT_LINE_HEIGHT;
+
+/** Brightness levels in the portrait grid, stored as one base-36 digit per cell. */
+export const LUMA_LEVELS = 36;
+/** Characters ordered from least to most ink; clearly distinct densities read as a picture. */
+const PORTRAIT_RAMP = " .',;:clodxkO0KXNWM";
+/** Opacity steps layered on top of the ramp, multiplying the number of visible tones. */
+const OPACITY_STEPS = 10;
+/** On the dark card, subject brightness below this renders as empty space. */
+const DARK_CUTOFF = 0.5;
+/** On the dark card, the portrait starts fading out at this fraction of its height. */
+const DARK_FADE_START = 0.55;
+/** Brightness of the photo's grey backdrop. */
+const BACKDROP_LUMA = 0.7;
+/** Backlight ellipse on the dark card, as fractions of the portrait grid: centred behind the head. */
+const SPOTLIGHT = { x: 0.42, y: 0.34, radiusX: 0.62, radiusY: 0.5 } as const;
 
 const FONT_STACK =
   "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Cascadia Mono', 'DejaVu Sans Mono', 'Liberation Mono', monospace";
@@ -106,7 +121,7 @@ const LAYOUTS: Record<Layout, LayoutSpec> = {
 export interface CardInput {
   profile: ProfileConfig;
   stats: GitHubStats;
-  /** ASCII portrait, one string per row. */
+  /** Portrait brightness grid, one string per row (see LUMA_LEVELS). */
   portrait: readonly string[];
   theme: Theme;
   layout: Layout;
@@ -321,6 +336,100 @@ function renderLine(line: Line, x: number, y: number): string {
   return gridText(spans, lineLength(line), x, y, CHAR_WIDTH);
 }
 
+interface PortraitCell {
+  glyph: string;
+  /** Index into the `.o0`..`.oN` opacity classes. */
+  opacity: number;
+}
+
+/**
+ * Strength of the backlight behind the subject at a cell: 1 at the centre of an
+ * ellipse around the head, fading smoothly to 0 before the grid edges.
+ */
+function spotlight(x: number, y: number, width: number, height: number): number {
+  const dx = (x - width * SPOTLIGHT.x) / (width * SPOTLIGHT.radiusX);
+  const dy = (y - height * SPOTLIGHT.y) / (height * SPOTLIGHT.radiusY);
+  const fade = Math.max(0, 1 - Math.hypot(dx, dy));
+  return fade * fade * (3 - 2 * fade);
+}
+
+/** Maps a brightness to its rank (0..1) among all subject cells: histogram equalisation. */
+function rankOf(rows: readonly string[]): (value: number) => number {
+  const values = rows
+    .flatMap((row) => [...row])
+    .filter((digit) => digit !== ' ')
+    .map((digit) => parseInt(digit, 36) / (LUMA_LEVELS - 1))
+    .sort((a, b) => a - b);
+  return (value) => {
+    let below = 0;
+    while (below < values.length && (values[below] ?? 0) < value) below++;
+    let upTo = below;
+    while (upTo < values.length && (values[upTo] ?? 0) === value) upTo++;
+    return values.length ? (below + upTo) / 2 / values.length : value;
+  };
+}
+
+/**
+ * Turns the brightness grid into characters and opacities for one theme, so the
+ * face stays a positive image on both cards.
+ *
+ * Light card: ink follows darkness and the backdrop is left out, as it already
+ * matches the card. Dark card: ink follows brightness, and the photo's lit grey
+ * backdrop is kept as a soft spotlight so the dark hair and shirt read as a
+ * silhouette against it instead of melting into the card.
+ */
+function shadePortrait(rows: readonly string[], theme: Theme): PortraitCell[][] {
+  const width = Math.max(...rows.map((row) => row.length));
+  const height = rows.length;
+  const equalise = rankOf(rows);
+  // Dark card: brightness is histogram-equalised so the face spans the bright end,
+  // and the darkest share (hair, shirt) maps to nothing, leaving a clean silhouette.
+  const toneOf = (value: number): number =>
+    theme === 'dark' ? Math.max(0, (equalise(value) - DARK_CUTOFF) / (1 - DARK_CUTOFF)) : 1 - value;
+  const glyphFor = (tone: number, minimum: number): string =>
+    PORTRAIT_RAMP[Math.max(minimum, Math.round(tone * (PORTRAIT_RAMP.length - 1)))] ?? ' ';
+  const step = (opacity: number): number => Math.round(Math.min(1, Math.max(0, opacity)) * OPACITY_STEPS);
+
+  return rows.map((row, y) =>
+    Array.from({ length: width }, (_, x): PortraitCell => {
+      const digit = row[x];
+      if (digit && digit !== ' ') {
+        // The dark card fades the portrait out below the collar, keeping the focus on the face.
+        const fade = theme === 'dark' ? Math.min(1, Math.max(0, (1 - y / height) / (1 - DARK_FADE_START))) : 1;
+        const tone = toneOf(parseInt(digit, 36) / (LUMA_LEVELS - 1)) * fade;
+        // On the light card every subject cell keeps a faint mark so the outline never
+        // breaks up; on the dark card black hair and shirt stay empty, cut out of the backlight.
+        return { glyph: glyphFor(tone, theme === 'light' ? 1 : 0), opacity: step(0.3 + 0.7 * tone) };
+      }
+      const light = theme === 'dark' ? spotlight(x, y, width, height) : 0;
+      if (light <= 0.02) return { glyph: ' ', opacity: 0 };
+      return { glyph: glyphFor(BACKDROP_LUMA * light * 0.85, 0), opacity: step(0.15 + 0.45 * light) };
+    }),
+  );
+}
+
+/** One `<text>` per portrait row, with runs of equal opacity grouped into a tspan. */
+function renderPortrait(rows: readonly string[], theme: Theme, x: number, top: number): string[] {
+  return shadePortrait(rows, theme).map((cells, i) => {
+    const last = cells.reduce((end, cell, index) => (cell.glyph === ' ' ? end : index), -1);
+    const spans: string[] = [];
+    let run = '';
+    let runOpacity = -1;
+    for (const cell of cells.slice(0, last + 1)) {
+      // Spaces take any opacity, so they join whatever run they sit in.
+      if (cell.glyph !== ' ' && cell.opacity !== runOpacity) {
+        if (run) spans.push(runOpacity < 0 ? run : `<tspan class="o${runOpacity}">${escapeXml(run)}</tspan>`);
+        run = '';
+        runOpacity = cell.opacity;
+      }
+      run += cell.glyph;
+    }
+    if (run) spans.push(runOpacity < 0 ? run : `<tspan class="o${runOpacity}">${escapeXml(run)}</tspan>`);
+    const y = top + i * PORTRAIT_LINE_HEIGHT + (PORTRAIT_LINE_HEIGHT - PORTRAIT_FONT_SIZE) / 2 + PORTRAIT_FONT_SIZE * 0.8;
+    return gridText(spans.join(''), last + 1, x, y, PORTRAIT_CHAR_WIDTH);
+  });
+}
+
 function renderStyle(palette: Palette): string {
   const tones = (Object.keys(TONE_CLASS) as Tone[])
     .map((tone) => `.${TONE_CLASS[tone]}{fill:${palette.tones[tone]}}`)
@@ -328,6 +437,7 @@ function renderStyle(palette: Palette): string {
   return [
     `text{font-family:${FONT_STACK};font-size:${FONT_SIZE}px;white-space:pre}`,
     `.portrait text{font-size:${PORTRAIT_FONT_SIZE}px}`,
+    Array.from({ length: OPACITY_STEPS + 1 }, (_, i) => `.o${i}{fill-opacity:${i / OPACITY_STEPS}}`).join(''),
     '.title{font-size:12px}',
     tones,
     '.c{animation:blink 1.1s steps(1) infinite}',
@@ -371,10 +481,7 @@ export function renderCard(input: CardInput): string {
     ...info.map((line, i) => renderLine(line, infoX, textBaseline(infoTop + i * LINE_HEIGHT))),
     renderLine(prompt(profile, [segment('█', 'cursor')]), PADDING, textBaseline(closingTop)),
   ];
-  const portraitLines = portrait.map((row, i) => {
-    const y = baseline(portraitTop + i * PORTRAIT_LINE_HEIGHT, PORTRAIT_FONT_SIZE, PORTRAIT_LINE_HEIGHT);
-    return gridText(escapeXml(row), row.length, portraitX, y, PORTRAIT_CHAR_WIDTH);
-  });
+  const portraitLines = renderPortrait(portrait, theme, portraitX, portraitTop);
 
   const lights = palette.lights
     .map((color, i) => `<circle cx="${20 + i * 20}" cy="${TITLE_BAR_HEIGHT / 2}" r="6" fill="${color}"/>`)
@@ -398,7 +505,9 @@ export function renderCard(input: CardInput): string {
     `<rect x="0.5" y="0.5" width="${px(width - 1)}" height="${px(height - 1)}" rx="9.5" fill="none" stroke="${palette.border}"/>`,
     lights,
     `<text class="title m" x="${px(width / 2)}" y="${TITLE_BAR_HEIGHT / 2 + 4}" text-anchor="middle">${escapeXml(`${profile.user}@${profile.host}: ~`)}</text>`,
-    `<g class="portrait" fill="url(#portrait)">${portraitLines.join('')}</g>`,
+    `<g class="portrait" fill="url(#portrait)">`,
+    ...portraitLines,
+    '</g>',
     body.filter(Boolean).join(''),
     '</svg>',
     '',
