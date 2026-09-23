@@ -1,0 +1,59 @@
+name: Update GitHub stats
+
+on:
+  schedule:
+    # Daily at 03:17 UTC (off the hour, when scheduled runs are least delayed).
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+  # Re-render right away when the card's content or generator changes.
+  # Pushes made by this workflow use GITHUB_TOKEN, so they never retrigger it.
+  push:
+    branches: [main]
+    paths:
+      - profile.config.ts
+      - scripts/**
+      - assets/avatar-ascii.txt
+      - .github/workflows/update-github-stats.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-github-stats
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install dev dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Update stats and profile card
+        run: npm run stats
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit and push changes
+        run: |
+          git add README.md assets/*.svg
+          if git diff --staged --quiet; then
+            echo "Stats unchanged; nothing to commit."
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore(stats): update github stats'
+          git push
