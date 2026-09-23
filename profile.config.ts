@@ -58,6 +58,7 @@ export const profile: ProfileConfig = {
         { key: 'GitHub', value: 'github.com/spacesdrive' },
         { key: 'LinkedIn', value: 'linkedin.com/in/u-k-r' },
         { key: 'Medium', value: 'medium.com/@ujjwal_kumar_rai' },
+        { key: 'Instagram', value: 'instagram.com/ujjwal.fyi' },
         // { key: 'Discord', value: '' },
       ],
     },

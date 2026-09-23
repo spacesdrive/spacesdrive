@@ -4,7 +4,7 @@
   <source media="(max-width: 600px) and (prefers-color-scheme: dark)" srcset="./assets/profile-card-mobile-dark.svg">
   <source media="(max-width: 600px)" srcset="./assets/profile-card-mobile-light.svg">
   <source media="(prefers-color-scheme: dark)" srcset="./assets/profile-card-dark.svg">
-  <img src="./assets/profile-card-light.svg" alt="Ujjwal Kumar Rai (@spacesdrive): ASCII portrait with system-info style profile. GitHub stats: 13 public repos, 206 stars, 28 forks, 861 commits, 15 pull requests, 1 issue, 2 followers, 1,115 contributions in the past year, 389,288 net lines of code." width="100%">
+  <img src="./assets/profile-card-light.svg" alt="Ujjwal Kumar Rai (@spacesdrive): ASCII portrait with system-info style profile. GitHub stats: 13 public repos, 206 stars, 28 forks, 861 commits, 15 pull requests, 1 issue, 2 followers, 1,120 contributions in the past year, 389,288 net lines of code." width="100%">
 </picture>
 <!-- GITHUB_STATS_END -->
 
@@ -16,5 +16,6 @@
   <a href="https://tech.ujjwal.fyi">Website</a> &middot;
   <a href="https://resume.tech.ujjwal.fyi/">Resume</a> &middot;
   <a href="https://www.linkedin.com/in/u-k-r/">LinkedIn</a> &middot;
-  <a href="https://medium.com/@ujjwal_kumar_rai">Medium</a>
+  <a href="https://medium.com/@ujjwal_kumar_rai">Medium</a> &middot;
+  <a href="https://www.instagram.com/ujjwal.fyi">Instagram</a>
 </p>
