@@ -9,7 +9,8 @@
  */
 import { readFile, writeFile } from 'node:fs/promises';
 import { profile } from '../profile.config.ts';
-import { renderCard, type Layout, type Theme } from './lib/card.ts';
+import { renderCard, type Layout } from './lib/card/card.ts';
+import type { Theme } from './lib/card/theme.ts';
 import { createGraphQLClient } from './lib/github.ts';
 import { describeCard, renderStatsBlock, replaceStatsBlock, type CardImages } from './lib/readme.ts';
 import { collectStats } from './lib/stats.ts';
