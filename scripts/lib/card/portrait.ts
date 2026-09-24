@@ -63,6 +63,57 @@ function rankOf(grid: (number | null)[][]): (value: number) => number {
   };
 }
 
+/** Gradient strength (0..1) above which a subject cell is drawn as a line. */
+const EDGE_THRESHOLD = 0.3;
+
+/**
+ * Line glyph for a cell on a strong contour inside the subject (brows, eyes,
+ * nose, jaw, hairline against the forehead), or null.
+ *
+ * A Sobel gradient finds how fast brightness changes and in which direction;
+ * the contour runs perpendicular to it. Cells are twice as tall as wide, so the
+ * vertical gradient is halved to measure it in the same units as the horizontal.
+ * Cells touching the background are skipped, so the outer silhouette never
+ * becomes a line (it boxes the head in). A cell only counts if it is the
+ * strongest along the gradient (non-maximum suppression), which keeps contours
+ * one character thick.
+ */
+function edgeGlyph(grid: (number | null)[][], x: number, y: number): string | null {
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if ((grid[y + dy]?.[x + dx] ?? null) === null) return null;
+    }
+  }
+
+  const gradient = (cx: number, cy: number): { gx: number; gy: number; strength: number } => {
+    const centre = grid[cy]?.[cx] ?? null;
+    if (centre === null) return { gx: 0, gy: 0, strength: 0 };
+    const at = (px: number, py: number): number => grid[py]?.[px] ?? centre;
+    const gx =
+      at(cx + 1, cy - 1) + 2 * at(cx + 1, cy) + at(cx + 1, cy + 1) - at(cx - 1, cy - 1) - 2 * at(cx - 1, cy) - at(cx - 1, cy + 1);
+    const gy =
+      (at(cx - 1, cy + 1) + 2 * at(cx, cy + 1) + at(cx + 1, cy + 1) - at(cx - 1, cy - 1) - 2 * at(cx, cy - 1) - at(cx + 1, cy - 1)) / 2;
+    return { gx, gy, strength: Math.hypot(gx, gy) / 4 };
+  };
+
+  const { gx, gy, strength } = gradient(x, y);
+  if (strength < EDGE_THRESHOLD) return null;
+
+  // Neighbours along the gradient, rounded to the nearest of 8 directions.
+  const stepX = Math.round(gx / Math.hypot(gx, gy));
+  const stepY = Math.round(gy / Math.hypot(gx, gy));
+  if (gradient(x + stepX, y + stepY).strength > strength || gradient(x - stepX, y - stepY).strength > strength) {
+    return null;
+  }
+
+  // Contour angle in degrees, 0 = horizontal, measured with y pointing up.
+  const angle = ((Math.atan2(-gx, -gy) * 180) / Math.PI + 180) % 180;
+  if (angle < 22.5 || angle >= 157.5) return '_';
+  if (angle < 67.5) return '/';
+  if (angle < 112.5) return '|';
+  return '\\';
+}
+
 const glyphFor = (tone: number, minimum: number): string =>
   RAMP[Math.max(minimum, Math.round(tone * (RAMP.length - 1)))] ?? ' ';
 
@@ -92,6 +143,9 @@ export function shadePortrait(rows: readonly string[], theme: Theme): PortraitCe
       if (value !== null) {
         // The dark card fades the portrait out below the collar, keeping the focus on the face.
         const fade = theme === 'dark' ? Math.min(1, Math.max(0, (1 - y / height) / (1 - DARK_FADE_START))) : 1;
+        // Strong contours are drawn as lines, like a pencil outline over the shading.
+        const edge = edgeGlyph(grid, x, y);
+        if (edge && fade > 0.3) return { glyph: edge, opacity: opacityStep(0.95 * fade) };
         const tone = toneOf(value) * fade;
         // On the light card every subject cell keeps a faint mark so the outline never
         // breaks up; on the dark card black hair and shirt stay empty, cut out of the backlight.
