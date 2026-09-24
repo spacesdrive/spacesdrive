@@ -19,5 +19,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["scripts/**/*.ts", "profile.config.ts"]
+  "include": ["scripts/**/*.ts", "profile.config.ts", "site/src/data.ts"]
 }

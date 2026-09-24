@@ -4,12 +4,16 @@
   <source media="(max-width: 600px) and (prefers-color-scheme: dark)" srcset="./assets/profile-card-mobile-dark.svg">
   <source media="(max-width: 600px)" srcset="./assets/profile-card-mobile-light.svg">
   <source media="(prefers-color-scheme: dark)" srcset="./assets/profile-card-dark.svg">
-  <img src="./assets/profile-card-light.svg" alt="Ujjwal Kumar Rai (@spacesdrive): ASCII portrait with system-info style profile. GitHub stats: 13 public repos, 206 stars, 28 forks, 863 commits, 15 pull requests, 1 issue, 2 followers, 1,115 contributions in the past year, 389,546 net lines of code." width="100%">
+  <img src="./assets/profile-card-light.svg" alt="Ujjwal Kumar Rai (@spacesdrive): ASCII portrait with system-info style profile. GitHub stats: 13 public repos, 206 stars, 28 forks, 863 commits, 15 pull requests, 1 issue, 2 followers, 1,122 contributions in the past year, 389,546 net lines of code." width="100%">
 </picture>
 <!-- GITHUB_STATS_END -->
 
 <p align="center">
   <em>Building, breaking, and learning across way too many domains.</em>
+</p>
+
+<p align="center">
+  <a href="https://spacesdrive.github.io/spacesdrive/"><code>$ open terminal</code></a> &nbsp;try <code>/help</code>, <code>/repos</code>, <code>/neofetch</code>
 </p>
 
 <p align="center">

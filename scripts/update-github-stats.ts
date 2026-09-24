@@ -2,22 +2,25 @@
  * Fetches live GitHub statistics, re-renders the profile card SVGs and refreshes
  * the generated block of README.md. Files are only written when their content
  * actually changes, so an unchanged run leaves the working tree clean.
+ * Also writes _site/data/profile.json, the web terminal's data (not committed).
  *
  * Usage:
  *   GITHUB_TOKEN=... npm run stats            # update files
  *   GITHUB_TOKEN=... npm run stats -- --dry-run  # print the stats, write nothing
  */
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { profile } from '../profile.config.ts';
 import { renderCard, type Layout } from './lib/card/card.ts';
 import type { Theme } from './lib/card/theme.ts';
 import { createGraphQLClient } from './lib/github.ts';
 import { describeCard, renderStatsBlock, replaceStatsBlock, type CardImages } from './lib/readme.ts';
+import { buildSiteData } from './lib/site-data.ts';
 import { collectStats } from './lib/stats.ts';
 
 const ROOT = new URL('../', import.meta.url);
 const README = new URL('README.md', ROOT);
 const PORTRAIT = new URL('assets/avatar-luma.txt', ROOT);
+const SITE_DATA = new URL('_site/data/profile.json', ROOT);
 
 const CARDS: Record<keyof CardImages, { path: string; theme: Theme; layout: Layout }> = {
   wideDark: { path: 'assets/profile-card-dark.svg', theme: 'dark', layout: 'wide' },
@@ -45,7 +48,9 @@ async function main(): Promise<void> {
   const dryRun = process.argv.includes('--dry-run');
 
   const stats = await collectStats(createGraphQLClient(token), profile.login);
-  console.log('Collected stats:', { ...stats, createdAt: stats.createdAt.toISOString() });
+  const { repositories, languages, ...totals } = stats;
+  console.log('Collected stats:', { ...totals, createdAt: stats.createdAt.toISOString() });
+  console.log(`Repositories: ${repositories.length}, languages: ${languages.map((language) => language.name).join(', ')}`);
   if (dryRun) return;
 
   const portrait = (await readFile(PORTRAIT, 'utf8')).replace(/\r\n/g, '\n').trimEnd().split('\n');
@@ -67,6 +72,10 @@ async function main(): Promise<void> {
   const readme = await readFile(README, 'utf8');
   const updated = replaceStatsBlock(readme, renderStatsBlock(images, description));
   if (await writeIfChanged(README, updated)) changed.push('README.md');
+
+  // The web terminal's snapshot is a build output (gitignored), deployed to GitHub Pages.
+  await mkdir(new URL('.', SITE_DATA), { recursive: true });
+  await writeFile(SITE_DATA, `${JSON.stringify(buildSiteData(profile, stats, portrait, now), null, 2)}\n`);
 
   console.log(changed.length ? `Updated: ${changed.join(', ')}` : 'No changes.');
 }

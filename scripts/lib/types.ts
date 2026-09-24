@@ -1,3 +1,5 @@
+import type { LanguageShare, RepositorySummary } from '../../site/src/data.ts';
+
 /** Live numbers pulled from the GitHub API. Everything here may change between runs. */
 export interface GitHubStats {
   login: string;
@@ -21,6 +23,10 @@ export interface GitHubStats {
   /** Line counts from the same commits as `commits`, excluding merge commits. */
   linesAdded: number;
   linesDeleted: number;
+  /** Owned, public, non-fork repositories, most starred first. Used by the web terminal. */
+  repositories: RepositorySummary[];
+  /** Languages across those repositories, largest first. Used by the web terminal. */
+  languages: LanguageShare[];
 }
 
 /** A value on the card: fixed text, or text derived from the live stats. */

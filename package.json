@@ -10,7 +10,9 @@
   "scripts": {
     "stats": "node scripts/update-github-stats.ts",
     "avatar": "node scripts/generate-ascii-avatar.ts",
-    "typecheck": "tsc --noEmit"
+    "build:site": "tsc -p tsconfig.site.json && node scripts/build-site.ts",
+    "preview": "npm run build:site && node scripts/serve-site.ts",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.site.json --noEmit"
   },
   "devDependencies": {
     "@types/node": "24.13.6",

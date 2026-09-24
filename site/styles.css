@@ -1,0 +1,200 @@
+/* Same palette as the profile card (scripts/lib/card/theme.ts). */
+:root {
+  --page: #05080c;
+  --background: #0b0f15;
+  --title-bar: #121821;
+  --border: #252d38;
+  --text: #d4dae1;
+  --key: #5eead4;
+  --muted: #5b6573;
+  --accent: #b69cff;
+  --number: #fbc760;
+  --added: #6ee787;
+  --deleted: #ff7b72;
+  --path: #79c0ff;
+  --error: #ff7b72;
+  --font: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Cascadia Mono', 'DejaVu Sans Mono', 'Liberation Mono', monospace;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --page: #e9edf1;
+    --background: #fbfcfd;
+    --title-bar: #eef1f4;
+    --border: #d0d7de;
+    --text: #1f2328;
+    --key: #0f766e;
+    --muted: #8c959f;
+    --accent: #6d3fd0;
+    --number: #9a6700;
+    --added: #1a7f37;
+    --deleted: #cf222e;
+    --path: #0969da;
+    --error: #cf222e;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+  background: var(--page);
+  color: var(--text);
+  font: 14px/1.45 var(--font);
+}
+
+.window {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 1000px;
+  height: calc(100vh - 32px);
+  height: calc(100dvh - 32px);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--background);
+}
+
+.title-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--title-bar);
+  font-size: 12px;
+}
+
+.lights {
+  display: flex;
+  gap: 8px;
+}
+
+.lights i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #f2575b;
+}
+
+.lights i:nth-child(2) {
+  background: #f4b63f;
+}
+
+.lights i:nth-child(3) {
+  background: #3ecf6b;
+}
+
+.title {
+  flex: 1;
+  color: var(--muted);
+  text-align: center;
+}
+
+.source {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.screen {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  cursor: text;
+}
+
+.line {
+  min-height: 1.45em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.prompt-line {
+  display: flex;
+  gap: 1ch;
+  margin: 0;
+}
+
+.prompt-label {
+  white-space: nowrap;
+}
+
+#input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  caret-color: var(--key);
+  font: inherit;
+}
+
+.text { color: var(--text); }
+.key { color: var(--key); }
+.muted { color: var(--muted); }
+.accent { color: var(--accent); }
+.number { color: var(--number); }
+.added { color: var(--added); }
+.deleted { color: var(--deleted); }
+.path { color: var(--path); }
+.error { color: var(--error); }
+.portrait { color: var(--key); }
+
+/* Portrait rows are sampled for cells twice as tall as wide (0.6em x 1.2em). */
+.line:has(> .portrait) {
+  /* 60 columns x 0.6em = 36em; shrink the font so the portrait fits narrow screens. */
+  font-size: min(1em, calc((100vw - 48px) / 36));
+  min-height: 1.2em;
+  line-height: 1.2;
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+a.path {
+  text-decoration: none;
+}
+
+a.path:hover,
+a.path:focus-visible {
+  text-decoration: underline;
+}
+
+@media (max-width: 600px) {
+  body {
+    padding: 0;
+    font-size: 12.5px;
+  }
+
+  .window {
+    height: 100vh;
+    height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .source {
+    display: none;
+  }
+
+  .screen {
+    padding: 12px;
+  }
+
+  /* 16px stops iOS from zooming into the field on focus. */
+  #input {
+    font-size: 16px;
+  }
+}

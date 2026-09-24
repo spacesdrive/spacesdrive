@@ -4,6 +4,7 @@
  * Every query is restricted to public data so the numbers are the same whether
  * the script runs with the workflow's GITHUB_TOKEN or with a personal token.
  */
+import type { LanguageShare, RepositorySummary } from '../../site/src/data.ts';
 import type { GraphQLClient } from './github.ts';
 import type { GitHubStats } from './types.ts';
 
@@ -32,9 +33,15 @@ interface ProfileQuery {
 
 interface Repository {
   name: string;
+  description: string | null;
+  url: string;
+  homepageUrl: string | null;
+  pushedAt: string;
   isFork: boolean;
   stargazerCount: number;
   forkCount: number;
+  primaryLanguage: { name: string } | null;
+  languages: { edges: { size: number; node: { name: string } }[] };
   defaultBranchRef: { name: string } | null;
 }
 
@@ -94,9 +101,15 @@ const REPOSITORIES_QUERY = /* GraphQL */ `
         pageInfo { hasNextPage endCursor }
         nodes {
           name
+          description
+          url
+          homepageUrl
+          pushedAt
           isFork
           stargazerCount
           forkCount
+          primaryLanguage { name }
+          languages(first: 10, orderBy: { field: SIZE, direction: DESC }) { edges { size node { name } } }
           defaultBranchRef { name }
         }
       }
@@ -171,6 +184,31 @@ async function fetchCommitTotals(
   return totals;
 }
 
+/** Repositories for the web terminal, most starred first. */
+function summariseRepositories(repositories: Repository[]): RepositorySummary[] {
+  return repositories
+    .map((repo) => ({
+      name: repo.name,
+      description: repo.description,
+      url: repo.url,
+      homepage: repo.homepageUrl || null,
+      language: repo.primaryLanguage?.name ?? null,
+      stars: repo.stargazerCount,
+      forks: repo.forkCount,
+      pushedAt: repo.pushedAt,
+    }))
+    .sort((a, b) => b.stars - a.stars || a.name.localeCompare(b.name));
+}
+
+/** Bytes per language summed across repositories, largest first. */
+function totalLanguages(repositories: Repository[]): LanguageShare[] {
+  const bytes = new Map<string, number>();
+  for (const repo of repositories) {
+    for (const { size, node } of repo.languages.edges) bytes.set(node.name, (bytes.get(node.name) ?? 0) + size);
+  }
+  return [...bytes].map(([name, total]) => ({ name, bytes: total })).sort((a, b) => b.bytes - a.bytes);
+}
+
 export async function collectStats(client: GraphQLClient, login: string): Promise<GitHubStats> {
   const search = (qualifiers: string): string => `author:${login} is:public ${qualifiers}`;
   const profile = await client<ProfileQuery>(PROFILE_QUERY, {
@@ -201,6 +239,8 @@ export async function collectStats(client: GraphQLClient, login: string): Promis
     contributionsLastYear: user.contributionsCollection.contributionCalendar.totalContributions,
     linesAdded: 0,
     linesDeleted: 0,
+    repositories: summariseRepositories(sources),
+    languages: totalLanguages(sources),
   };
 
   // Sequential on purpose: parallel history walks trip GitHub's secondary rate limits.
