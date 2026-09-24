@@ -5,14 +5,16 @@ on:
     # Daily at 03:17 UTC (off the hour, when scheduled runs are least delayed).
     - cron: '17 3 * * *'
   workflow_dispatch:
-  # Re-render right away when the card's content or generator changes.
+  # Re-render right away when the card, the web terminal or their generators change.
   # Pushes made by this workflow use GITHUB_TOKEN, so they never retrigger it.
   push:
     branches: [main]
     paths:
       - profile.config.ts
       - scripts/**
+      - site/**
       - assets/avatar-luma.txt
+      - tsconfig.site.json
       - .github/workflows/update-github-stats.yml
 
 permissions:
@@ -57,3 +59,27 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'chore(stats): update github stats'
           git push
+
+      # The stats step wrote _site/data/profile.json; add the terminal's page and scripts.
+      - name: Build web terminal
+        run: npm run build:site
+
+      - name: Upload web terminal
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    needs: update
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy web terminal to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
