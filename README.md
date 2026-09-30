@@ -4,7 +4,7 @@
   <source media="(max-width: 600px) and (prefers-color-scheme: dark)" srcset="./assets/profile-card-mobile-dark.svg">
   <source media="(max-width: 600px)" srcset="./assets/profile-card-mobile-light.svg">
   <source media="(prefers-color-scheme: dark)" srcset="./assets/profile-card-dark.svg">
-  <img src="./assets/profile-card-light.svg" alt="Ujjwal Kumar Rai (@spacesdrive): ASCII portrait with system-info style profile. GitHub stats: 14 public repos, 208 stars, 28 forks, 920 commits, 15 pull requests, 1 issue, 2 followers, 1,208 contributions in the past year, 405,454 net lines of code." width="100%">
+  <img src="./assets/profile-card-light.svg" alt="Ujjwal Kumar Rai (@spacesdrive): ASCII portrait with system-info style profile. GitHub stats: 14 public repos, 208 stars, 28 forks, 920 commits, 15 pull requests, 1 issue, 2 followers, 1,209 contributions in the past year, 405,454 net lines of code." width="100%">
 </picture>
 <!-- GITHUB_STATS_END -->
 
